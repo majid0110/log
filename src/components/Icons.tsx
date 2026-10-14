@@ -36,7 +36,14 @@ export const IconList = () => (
     <circle cx="3.5" cy="18" r="1" />
   </Svg>
 )
-export const IconCheck = ({ size = 22 }: { size?: number }) => (
+export const IconWallet = () => (
+  <Svg>
+    <path d="M3 7a2 2 0 0 1 2-2h13v4" />
+    <path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z" />
+    <circle cx="16" cy="14.5" r="1.2" />
+  </Svg>
+)
+export const IconCheck =({ size = 22 }: { size?: number }) => (
   <Svg size={size}>
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </Svg>

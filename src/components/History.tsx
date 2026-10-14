@@ -1,13 +1,20 @@
 import { useMemo } from 'react'
 import type { Entry } from '../lib/data'
 import { buildCsv, downloadCsv } from '../lib/csv'
-import { monthKey, monthTitle, prettyDate, timeOf, todayISO, weekdayName } from '../lib/dates'
+import { clock, duration, monthKey, monthTitle, prettyDate, todayISO, weekdayName } from '../lib/dates'
 import { IconDownload, IconPlus } from './Icons'
 
 interface Props {
   entries: Entry[]
   onAdd: () => void
   onEdit: (entry: Entry) => void
+}
+
+function timesLine(e: Entry): string {
+  if (!e.entry_at) return `${weekdayName(e.work_date)} · times missing, tap to add`
+  if (!e.exit_at) return `${weekdayName(e.work_date)} · in ${clock(e.entry_at)} · no exit yet`
+  const nextDay = e.exit_at.slice(0, 10) !== e.entry_at.slice(0, 10) ? ' (+1)' : ''
+  return `${weekdayName(e.work_date)} · ${clock(e.entry_at)} → ${clock(e.exit_at)}${nextDay}`
 }
 
 export default function History({ entries, onAdd, onEdit }: Props) {
@@ -33,7 +40,7 @@ export default function History({ entries, onAdd, onEdit }: Props) {
       <div className="card export">
         <div>
           <strong>Export for Excel</strong>
-          <p className="muted">Date, day, time recorded and notes.</p>
+          <p className="muted">Date, day, entry, exit, hours, lunch, night hours and notes.</p>
         </div>
         <div className="export-btns">
           <button
@@ -61,13 +68,19 @@ export default function History({ entries, onAdd, onEdit }: Props) {
             {monthTitle(key)} <span>{list.length} {list.length === 1 ? 'day' : 'days'}</span>
           </h3>
           <ul className="list">
-            {list.map((e) => (
-              <li key={e.id}>
+            {list.map((e, i) => (
+              <li key={e.id} style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}>
                 <button className="item card" onClick={() => onEdit(e)}>
                   <span className="item-date">
                     <strong>{prettyDate(e.work_date)}</strong>
-                    <span className="muted">{weekdayName(e.work_date)} · {timeOf(e.recorded_at)}{e.source === 'manual' ? ' · added later' : ''}</span>
+                    <span className="muted">{timesLine(e)}</span>
                   </span>
+                  {e.paid_minutes != null && (
+                    <span className="chips">
+                      <span className="chip">{duration(e.paid_minutes)} paid</span>
+                      {(e.night_minutes ?? 0) > 0 && <span className="chip night">{duration(e.night_minutes)} night</span>}
+                    </span>
+                  )}
                   {e.note && <span className="item-note">{e.note}</span>}
                 </button>
               </li>

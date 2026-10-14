@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Logo from './Logo'
+import { Credit } from './Bits'
 
 export default function Auth() {
   const [mode, setMode] = useState<'in' | 'up'>('in')
@@ -69,6 +70,7 @@ export default function Auth() {
         <button className="link" onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setMessage(null) }}>
           {mode === 'in' ? 'First time? Create your account' : 'I already have an account'}
         </button>
+        <Credit />
       </div>
     </main>
   )

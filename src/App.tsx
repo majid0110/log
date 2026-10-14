@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configured, supabase } from './lib/supabase'
-import { addEntry, deleteEntry, listEntries, updateEntry, type Entry } from './lib/data'
-import { todayISO } from './lib/dates'
+import {
+  checkIn, checkOut, deleteEntry, listEntries, listRates, saveEntry, type Entry, type Rate,
+} from './lib/data'
+import { currentPeriod, todayISO } from './lib/dates'
+import { useSummary } from './lib/hooks'
 import Auth from './components/Auth'
 import Home from './components/Home'
 import CalendarView from './components/CalendarView'
 import History from './components/History'
+import Salary from './components/Salary'
 import EntryModal from './components/EntryModal'
 import Logo from './components/Logo'
-import { IconCalendar, IconCheck, IconHome, IconList, IconLogout, IconMoon, IconSun } from './components/Icons'
+import { Credit } from './components/Bits'
+import {
+  IconCalendar, IconCheck, IconHome, IconList, IconLogout, IconMoon, IconSun, IconWallet,
+} from './components/Icons'
 
-type Tab = 'today' | 'calendar' | 'history'
+type Tab = 'today' | 'calendar' | 'history' | 'salary'
 type Modal = { entry?: Entry; date?: string } | null
 
 const readTheme = (): 'dark' | 'light' => {
@@ -26,6 +33,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
   const [entries, setEntries] = useState<Entry[]>([])
+  const [rates, setRates] = useState<Rate[]>([])
+  const [version, setVersion] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('today')
   const [modal, setModal] = useState<Modal>(null)
@@ -57,17 +66,21 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      setEntries(await listEntries())
+      const [e, r] = await Promise.all([listEntries(), listRates()])
+      setEntries(e)
+      setRates(r)
       setLoadError(null)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Could not load your records.')
     }
+    setVersion((v) => v + 1) // makes every salary figure re-load from the database
   }, [])
 
   // Load on sign-in, and again whenever the app comes back to the foreground (picks up edits from the other phone).
   useEffect(() => {
     if (!session) {
       setEntries([])
+      setRates([])
       return
     }
     void refresh()
@@ -84,20 +97,25 @@ export default function App() {
     return () => clearTimeout(t)
   }, [toast])
 
-  const markToday = async () => {
+  const period = currentPeriod(todayISO())
+  const { summary } = useSummary(period.start, period.end, version)
+
+  /** Runs a save, shows the result as a message, and reports whether it worked. */
+  const run = async (action: () => Promise<void>, message: string): Promise<boolean> => {
     try {
-      await addEntry(todayISO(), '', 'tap')
+      await action()
       await refresh()
-      setToast('Saved. Today is recorded.')
+      setToast(message)
+      return true
     } catch (e) {
       setToast(e instanceof Error ? e.message : 'Could not save.')
       await refresh()
+      return false
     }
   }
 
-  const saveModal = async (date: string, note: string) => {
-    if (modal?.entry) await updateEntry(modal.entry.id, date, note)
-    else await addEntry(date, note, 'manual')
+  const saveModal = async (date: string, entry: string, exit: string, note: string) => {
+    await saveEntry({ id: modal?.entry?.id, date, entry, exit, note })
     await refresh()
     setModal(null)
     setToast('Saved.')
@@ -121,6 +139,7 @@ export default function App() {
             This site is built but not yet connected to its database. Add <code>VITE_SUPABASE_URL</code> and{' '}
             <code>VITE_SUPABASE_ANON_KEY</code> as repository secrets, then re-run the deploy. See the README.
           </p>
+          <Credit />
         </div>
       </main>
     )
@@ -143,21 +162,34 @@ export default function App() {
         </div>
       </header>
 
-      <main className="content">
+      <main className="content" key={tab}>
         {loadError && <p className="notice error" role="alert">{loadError}</p>}
-        {tab === 'today' && <Home entries={entries} onMarkToday={markToday} />}
+        {tab === 'today' && (
+          <Home
+            entries={entries}
+            rates={rates}
+            summary={summary}
+            onCheckIn={() => run(checkIn, 'Saved. Entry time recorded.')}
+            onCheckOut={(id) => run(() => checkOut(id), 'Saved. Exit time recorded.')}
+            onEdit={(entry) => setModal({ entry })}
+            onGoSalary={() => setTab('salary')}
+          />
+        )}
         {tab === 'calendar' && (
           <CalendarView entries={entries} onPickDay={(date, entry) => setModal({ date, entry })} />
         )}
         {tab === 'history' && (
           <History entries={entries} onAdd={() => setModal({})} onEdit={(entry) => setModal({ entry })} />
         )}
+        {tab === 'salary' && <Salary rates={rates} version={version} onChanged={refresh} />}
+        <Credit />
       </main>
 
       <nav className="tabbar" aria-label="Main">
         <button className={tab === 'today' ? 'active' : ''} onClick={() => setTab('today')}><IconHome /><span>Today</span></button>
         <button className={tab === 'calendar' ? 'active' : ''} onClick={() => setTab('calendar')}><IconCalendar /><span>Calendar</span></button>
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><IconList /><span>History</span></button>
+        <button className={tab === 'salary' ? 'active' : ''} onClick={() => setTab('salary')}><IconWallet /><span>Salary</span></button>
       </nav>
 
       {toast && (

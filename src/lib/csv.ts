@@ -1,8 +1,13 @@
-import { parseISO, timeOf } from './dates.ts'
+import { clock, hm, parseISO } from './dates.ts'
 
 export interface CsvEntry {
   work_date: string
-  recorded_at: string
+  entry_at: string | null
+  exit_at: string | null
+  worked_minutes: number | null
+  lunch_minutes: number | null
+  paid_minutes: number | null
+  night_minutes: number | null
   note: string | null
 }
 
@@ -13,17 +18,31 @@ export const csvField = (value: string): string => {
   return `"${v.replace(/"/g, '""')}"`
 }
 
+const HEADER = ['Date', 'Day', 'Entry time', 'Exit time', 'Hours worked', 'Lunch break (min)', 'Paid hours', 'Night hours', 'Notes']
+
 /**
- * Builds a CSV that opens cleanly in Excel: UTF-8 BOM, CRLF line endings,
- * oldest day first. Columns: Date, Day, Time recorded, Notes.
+ * Builds a CSV that opens cleanly in Excel: UTF-8 BOM, CRLF line endings, a "sep=," line so it
+ * splits into columns in any Excel language, oldest day first. Hours are written as h:mm.
  */
 export const buildCsv = (entries: CsvEntry[]): string => {
   const rows = [...entries].sort((a, b) => a.work_date.localeCompare(b.work_date))
-  const lines = [['Date', 'Day', 'Time recorded', 'Notes'].map(csvField).join(',')]
+  const lines = ['sep=,', HEADER.map(csvField).join(',')]
   for (const e of rows) {
     const day = parseISO(e.work_date).toLocaleDateString('en-US', { weekday: 'long' })
     lines.push(
-      [csvField(e.work_date), csvField(day), csvField(timeOf(e.recorded_at)), csvField(e.note ?? '')].join(','),
+      [
+        e.work_date,
+        day,
+        clock(e.entry_at),
+        clock(e.exit_at),
+        hm(e.worked_minutes),
+        e.lunch_minutes == null ? '' : String(e.lunch_minutes),
+        hm(e.paid_minutes),
+        hm(e.night_minutes),
+        e.note ?? '',
+      ]
+        .map(csvField)
+        .join(','),
     )
   }
   return '﻿' + lines.join('\r\n') + '\r\n'
