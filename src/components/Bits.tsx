@@ -1,10 +1,12 @@
 import type { CSSProperties } from 'react'
 import { useCountUp } from '../lib/hooks'
+import { locale, setLang, t } from '../lib/i18n'
+import { useLang } from '../lib/useLang'
 
 /** An amount that counts up smoothly. */
 export function Money({ value, currency }: { value: number; currency?: string | null }) {
   const shown = useCountUp(value)
-  const text = shown.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const text = shown.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return (
     <span className="money">
       {text}
@@ -35,9 +37,24 @@ export function Burst() {
 
 /** Designer credit, shown on every screen. */
 export function Credit() {
+  useLang()
   return (
     <p className="credit">
-      Designed &amp; built by <strong>Хан</strong>
+      {t('credit')} <strong>Хан</strong>
     </p>
+  )
+}
+
+/** English / Russian switch. */
+export function LangSwitch() {
+  const lang = useLang()
+  return (
+    <div className="lang" role="group" aria-label={t('aria.language')}>
+      {(['en', 'ru'] as const).map((l) => (
+        <button key={l} className={lang === l ? 'active' : ''} aria-pressed={lang === l} onClick={() => setLang(l)}>
+          {l === 'en' ? 'EN' : 'RU'}
+        </button>
+      ))}
+    </div>
   )
 }

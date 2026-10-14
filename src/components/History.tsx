@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import type { Entry } from '../lib/data'
 import { buildCsv, downloadCsv } from '../lib/csv'
 import { clock, duration, monthKey, monthTitle, prettyDate, todayISO, weekdayName } from '../lib/dates'
+import { t, tp } from '../lib/i18n'
+import { useLang } from '../lib/useLang'
 import { IconDownload, IconPlus } from './Icons'
 
 interface Props {
@@ -11,13 +13,15 @@ interface Props {
 }
 
 function timesLine(e: Entry): string {
-  if (!e.entry_at) return `${weekdayName(e.work_date)} · times missing, tap to add`
-  if (!e.exit_at) return `${weekdayName(e.work_date)} · in ${clock(e.entry_at)} · no exit yet`
-  const nextDay = e.exit_at.slice(0, 10) !== e.entry_at.slice(0, 10) ? ' (+1)' : ''
-  return `${weekdayName(e.work_date)} · ${clock(e.entry_at)} → ${clock(e.exit_at)}${nextDay}`
+  const wd = weekdayName(e.work_date)
+  if (!e.entry_at) return t('hist.timesMissing', { wd })
+  if (!e.exit_at) return t('hist.noExit', { wd, in: clock(e.entry_at) })
+  const next = e.exit_at.slice(0, 10) !== e.entry_at.slice(0, 10) ? ' (+1)' : ''
+  return t('hist.times', { wd, in: clock(e.entry_at), out: clock(e.exit_at), next })
 }
 
 export default function History({ entries, onAdd, onEdit }: Props) {
+  useLang()
   const groups = useMemo(() => {
     const map = new Map<string, Entry[]>()
     for (const e of entries) {
@@ -33,14 +37,14 @@ export default function History({ entries, onAdd, onEdit }: Props) {
     <section>
       <div className="row-actions">
         <button className="btn primary" onClick={onAdd}>
-          <IconPlus /> Add missed day
+          <IconPlus /> {t('hist.add')}
         </button>
       </div>
 
       <div className="card export">
         <div>
-          <strong>Export for Excel</strong>
-          <p className="muted">Date, day, entry, exit, hours, lunch, night hours and notes.</p>
+          <strong>{t('hist.export')}</strong>
+          <p className="muted">{t('hist.exportDesc')}</p>
         </div>
         <div className="export-btns">
           <button
@@ -48,24 +52,24 @@ export default function History({ entries, onAdd, onEdit }: Props) {
             disabled={entries.length === 0}
             onClick={() => downloadCsv(`attendance-${thisMonth}.csv`, buildCsv(entries.filter((e) => monthKey(e.work_date) === thisMonth)))}
           >
-            <IconDownload /> This month
+            <IconDownload /> {t('hist.thisMonth')}
           </button>
           <button
             className="btn ghost"
             disabled={entries.length === 0}
             onClick={() => downloadCsv(`attendance-all-${todayISO()}.csv`, buildCsv(entries))}
           >
-            <IconDownload /> Everything
+            <IconDownload /> {t('hist.everything')}
           </button>
         </div>
       </div>
 
-      {groups.length === 0 && <p className="empty muted">No days recorded yet. Tap “I Worked Today” on the Today tab.</p>}
+      {groups.length === 0 && <p className="empty muted">{t('hist.empty')}</p>}
 
       {groups.map(([key, list]) => (
         <div key={key} className="group">
           <h3 className="group-title">
-            {monthTitle(key)} <span>{list.length} {list.length === 1 ? 'day' : 'days'}</span>
+            {monthTitle(key)} <span>{tp('days', list.length)}</span>
           </h3>
           <ul className="list">
             {list.map((e, i) => (
@@ -77,8 +81,8 @@ export default function History({ entries, onAdd, onEdit }: Props) {
                   </span>
                   {e.paid_minutes != null && (
                     <span className="chips">
-                      <span className="chip">{duration(e.paid_minutes)} paid</span>
-                      {(e.night_minutes ?? 0) > 0 && <span className="chip night">{duration(e.night_minutes)} night</span>}
+                      <span className="chip">{t('hist.paid', { dur: duration(e.paid_minutes) })}</span>
+                      {(e.night_minutes ?? 0) > 0 && <span className="chip night">{t('hist.night', { dur: duration(e.night_minutes) })}</span>}
                     </span>
                   )}
                   {e.note && <span className="item-note">{e.note}</span>}

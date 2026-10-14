@@ -4,7 +4,7 @@ A small private website for recording the days I actually work, with entry and e
 
 Designed & built by **Хан**.
 
-**Features:** one-tap entry and exit, monthly calendar, history grouped by month (add / edit / delete, optional notes), hourly rate per month, salary for 1–15 and 16–end (plus a bonus you type in), CSV export for Excel, dark and light themes. Nothing is ever deleted automatically.
+**Features:** one-tap entry and exit, monthly calendar, history grouped by month (add / edit / delete, optional notes), hourly rate per month, salary for 1–15 and 16–end (plus a bonus you type in), CSV export for Excel, dark and light themes, English and Russian (switch with EN / RU at the top). Nothing is ever deleted automatically.
 
 **Stack:** React + TypeScript (Vite), Supabase (Postgres + Auth), GitHub Pages, GitHub Actions.
 
@@ -43,6 +43,15 @@ Designed & built by **Хан**.
 - **History:** every day with entry and exit times, grouped by month. Tap one to edit times or notes, or to delete it. **Add missed day** adds a day you forgot.
 - **Salary:** set the hourly rate for the month, see both half-month periods, and type in the bonus for the second one.
 - **Export:** History → **This month** or **Everything**. The CSV has date, day, entry, exit, hours worked, lunch, paid hours, night hours and notes, and opens in Excel.
+
+## Staying signed in
+- You sign in once per phone. The site keeps the sign-in on the device and renews it in the background, so you are not asked again until you tap **Sign out** or the browser clears the site's data.
+- **Best on iPhone: add it to the Home Screen** (Safari → Share → Add to Home Screen) and open it from the icon. Safari deletes the saved data of ordinary websites after about 7 days without a visit, but not of Home Screen apps.
+- On Android, Chrome keeps the sign-in; do not clear the site's data or use a private tab.
+- The sign-in renews itself with Supabase's refresh token. On the free plan it has no automatic expiry. If you ever want a limit, Supabase has one under Authentication → Sessions (a paid-plan feature).
+
+## Language
+Use the **EN / RU** switch at the top of any screen (also on the sign-in page). The choice is remembered on that device; the first time, the site follows your phone's language. Dates, month names, plural forms and the Excel export columns change too.
 
 ## Changing the site later
 Edit the code and push to `main`. GitHub Actions runs the tests (including a database test against a real Postgres), builds the site and republishes it automatically.

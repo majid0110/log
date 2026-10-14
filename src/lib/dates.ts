@@ -1,6 +1,8 @@
 // Date helpers. Work dates are plain "YYYY-MM-DD" strings and times are plain local
 // "YYYY-MM-DDTHH:MM:SS" strings (no time zone), so nothing shifts between devices.
 
+import { locale, t } from './i18n.ts'
+
 export const pad = (n: number): string => String(n).padStart(2, '0')
 
 export const toISO = (d: Date): string =>
@@ -30,13 +32,19 @@ export const monthKey = (iso: string): string => iso.slice(0, 7)
 
 export const monthTitle = (key: string): string => {
   const [y, m] = key.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' })
 }
 
 export const monthName = (key: string): string => {
   const [y, m] = key.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long' })
 }
+
+/** A date like "Wednesday" / "среда", in the chosen language. */
+export const longWeekday = (d: Date): string => d.toLocaleDateString(locale(), { weekday: 'long' })
+
+/** A date like "14 October" / "14 октября", in the chosen language. */
+export const dayAndMonth = (d: Date): string => d.toLocaleDateString(locale(), { day: 'numeric', month: 'long' })
 
 export const shiftMonth = (key: string, delta: number): string => {
   const [y, m] = key.split('-').map(Number)
@@ -45,10 +53,10 @@ export const shiftMonth = (key: string, delta: number): string => {
 }
 
 export const weekdayName = (iso: string, style: 'long' | 'short' = 'long'): string =>
-  parseISO(iso).toLocaleDateString(undefined, { weekday: style })
+  parseISO(iso).toLocaleDateString(locale(), { weekday: style })
 
 export const prettyDate = (iso: string): string =>
-  parseISO(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  parseISO(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** "2026-10-14T08:02:11" -> "08:02" (empty when there is no time). */
 export const clock = (ts: string | null | undefined): string => (ts ? ts.slice(11, 16) : '')
@@ -58,7 +66,7 @@ export const duration = (min: number | null | undefined): string => {
   if (min == null) return '—'
   const h = Math.floor(min / 60)
   const m = min % 60
-  return h > 0 ? `${h}h ${pad(m)}m` : `${m}m`
+  return h > 0 ? `${h}${t('unit.h')} ${pad(m)}${t('unit.m')}` : `${m}${t('unit.m')}`
 }
 
 /** Minutes -> "8:15" (safe to open in Excel in any language). */

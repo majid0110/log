@@ -267,6 +267,17 @@ textarea { resize: vertical; }
 .credit { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 26px; }
 .credit strong { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 1.05rem; letter-spacing: 0.4px; }
 
+/* ---- Language switch ---- */
+.lang { display: inline-flex; padding: 3px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); }
+.lang button {
+  border: 0; background: transparent; color: var(--muted); font-weight: 800; font-size: 0.78rem; letter-spacing: 0.5px;
+  padding: 0 11px; min-height: 36px; border-radius: 11px; transition: background .2s, color .2s;
+}
+.lang button.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+.top-actions { align-items: center; }
+.auth { position: relative; }
+.auth-lang { position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 16px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

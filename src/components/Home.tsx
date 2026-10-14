@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Entry, Rate, Summary } from '../lib/data'
 import {
-  addDays, clock, currentPeriod, duration, monthKey, monthName, monthTitle, parseISO, todayISO,
+  addDays, clock, currentPeriod, dayAndMonth, duration, longWeekday, monthKey, monthName, monthTitle, parseISO, todayISO,
 } from '../lib/dates'
+import { locale, t, tp } from '../lib/i18n'
 import { useTick } from '../lib/hooks'
+import { useLang } from '../lib/useLang'
 import { Burst, Money } from './Bits'
 import { IconCheck } from './Icons'
 
@@ -20,6 +22,7 @@ interface Props {
 const DAY_MS = 24 * 3600 * 1000
 
 export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, onEdit, onGoSalary }: Props) {
+  useLang()
   const [busy, setBusy] = useState(false)
   const [burst, setBurst] = useState(0)
 
@@ -54,31 +57,35 @@ export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, o
   const carriedRate = rates.find((r) => r.month < `${thisMonth}-01`)
 
   const label =
-    phase === 'in' ? (busy ? 'Saving…' : 'I Worked Today') : phase === 'out' ? (busy ? 'Saving…' : 'Record Exit') : 'Done for today'
+    phase === 'in'
+      ? busy ? t('common.saving') : t('home.btnIn')
+      : phase === 'out'
+        ? busy ? t('common.saving') : t('home.btnOut')
+        : t('home.btnDone')
   const sub =
     phase === 'in'
-      ? 'Tap to record your entry time'
+      ? t('home.subIn')
       : phase === 'out' && open?.entry_at
-        ? `In at ${clock(open.entry_at)} · working ${duration(running)}`
+        ? t('home.subOut', { time: clock(open.entry_at), dur: duration(running) })
         : todays?.entry_at
           ? `${clock(todays.entry_at)} → ${clock(todays.exit_at)}${todays.worked_minutes != null ? ` · ${duration(todays.worked_minutes)}` : ''}`
-          : 'Recorded for today'
+          : t('home.subDone')
+
+  const todayDate = parseISO(today)
 
   return (
     <section className="home stagger">
       <div className="hero card">
-        <p className="eyebrow">{parseISO(today).toLocaleDateString(undefined, { weekday: 'long' })}</p>
-        <h2 className="big-date">
-          {parseISO(today).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
-        </h2>
+        <p className="eyebrow">{longWeekday(todayDate)}</p>
+        <h2 className="big-date">{dayAndMonth(todayDate)}</h2>
         <p className="muted">{monthTitle(thisMonth)}</p>
       </div>
 
       {!hasRateThisMonth && carriedRate && (
         <button className="card banner" onClick={onGoSalary}>
-          <strong>New month, same rate?</strong>
+          <strong>{t('home.newMonth')}</strong>
           <span className="muted">
-            Your rate is still {carriedRate.hourly_rate.toLocaleString()} {carriedRate.currency}/hour. Tap to confirm or change it.
+            {t('home.rateStill', { rate: carriedRate.hourly_rate.toLocaleString(locale()), cur: carriedRate.currency })}
           </span>
         </button>
       )}
@@ -91,7 +98,7 @@ export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, o
           aria-live="polite"
         >
           <span className="ring" aria-hidden="true">
-            {phase === 'done' ? <IconCheck size={44} /> : phase === 'out' ? <span className="stop" /> : <IconCheck size={44} />}
+            {phase === 'out' ? <span className="stop" /> : <IconCheck size={44} />}
           </span>
           <span className="worked-label">{label}</span>
           <span className="worked-sub">{sub}</span>
@@ -101,30 +108,32 @@ export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, o
 
       {open && open.work_date !== today && (
         <button className="link" onClick={() => onEdit(open)}>
-          This shift started on {open.work_date}. Wrong? Edit it
+          {t('home.openWrong', { date: open.work_date })}
         </button>
       )}
 
       <div className="stats">
         <div className="card stat">
           <span className="stat-num">{monthCount}</span>
-          <span className="muted">days worked in {monthName(thisMonth)}</span>
+          <span className="muted">{t('home.daysWorked', { month: monthName(thisMonth) })}</span>
         </div>
         <div className="card stat">
           <span className="stat-num">{entries.length}</span>
-          <span className="muted">days recorded in total</span>
+          <span className="muted">{t('home.daysTotal')}</span>
         </div>
       </div>
 
       <button className="card pay" onClick={onGoSalary}>
-        <span className="muted">Salary so far, {monthName(thisMonth)} {period.label}</span>
+        <span className="muted">{t('home.salarySoFar', { month: monthName(thisMonth), period: period.label })}</span>
         {summary && summary.rate != null ? (
           <>
             <span className="pay-num"><Money value={summary.grand_total} currency={summary.currency} /></span>
-            <span className="muted">{duration(summary.paid_minutes)} paid · {summary.work_days} {summary.work_days === 1 ? 'day' : 'days'}</span>
+            <span className="muted">
+              {t('home.paidDays', { dur: duration(summary.paid_minutes), days: tp('days', summary.work_days) })}
+            </span>
           </>
         ) : (
-          <span className="pay-num small">{summary ? 'Set your hourly rate' : '…'}</span>
+          <span className="pay-num small">{summary ? t('home.setRate') : '…'}</span>
         )}
       </button>
     </section>

@@ -1,4 +1,5 @@
 import { clock, hm, parseISO } from './dates.ts'
+import { locale, t } from './i18n.ts'
 
 export interface CsvEntry {
   work_date: string
@@ -18,7 +19,10 @@ export const csvField = (value: string): string => {
   return `"${v.replace(/"/g, '""')}"`
 }
 
-const HEADER = ['Date', 'Day', 'Entry time', 'Exit time', 'Hours worked', 'Lunch break (min)', 'Paid hours', 'Night hours', 'Notes']
+const header = (): string[] => [
+  t('csv.date'), t('csv.day'), t('csv.entry'), t('csv.exit'), t('csv.worked'),
+  t('csv.lunch'), t('csv.paid'), t('csv.night'), t('csv.notes'),
+]
 
 /**
  * Builds a CSV that opens cleanly in Excel: UTF-8 BOM, CRLF line endings, a "sep=," line so it
@@ -26,9 +30,9 @@ const HEADER = ['Date', 'Day', 'Entry time', 'Exit time', 'Hours worked', 'Lunch
  */
 export const buildCsv = (entries: CsvEntry[]): string => {
   const rows = [...entries].sort((a, b) => a.work_date.localeCompare(b.work_date))
-  const lines = ['sep=,', HEADER.map(csvField).join(',')]
+  const lines = ['sep=,', header().map(csvField).join(',')]
   for (const e of rows) {
-    const day = parseISO(e.work_date).toLocaleDateString('en-US', { weekday: 'long' })
+    const day = parseISO(e.work_date).toLocaleDateString(locale(), { weekday: 'long' })
     lines.push(
       [
         e.work_date,

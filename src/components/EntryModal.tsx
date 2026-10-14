@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Entry } from '../lib/data'
 import { clock, todayISO } from '../lib/dates'
+import { t } from '../lib/i18n'
+import { useLang } from '../lib/useLang'
 
 interface Props {
   entry?: Entry
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export default function EntryModal({ entry, initialDate, onSave, onDelete, onClose }: Props) {
+  useLang()
   const [date, setDate] = useState(entry?.work_date ?? initialDate ?? todayISO())
   const [inTime, setInTime] = useState(clock(entry?.entry_at))
   const [outTime, setOutTime] = useState(clock(entry?.exit_at))
@@ -27,7 +30,7 @@ export default function EntryModal({ entry, initialDate, onSave, onDelete, onClo
     try {
       await fn()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.')
+      setError(e instanceof Error ? e.message : t('common.error'))
       setBusy(false)
     }
   }
@@ -43,32 +46,32 @@ export default function EntryModal({ entry, initialDate, onSave, onDelete, onClo
         }}
       >
         <div className="grab" aria-hidden="true" />
-        <h2>{entry ? 'Edit day' : 'Add a day'}</h2>
+        <h2>{entry ? t('modal.edit') : t('modal.add')}</h2>
 
         <label>
-          Date the shift started
+          {t('modal.date')}
           <input type="date" required value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
         </label>
 
         <div className="two">
           <label>
-            Entry time
+            {t('modal.entry')}
             <input type="time" required value={inTime} onChange={(e) => setInTime(e.target.value)} />
           </label>
           <label>
-            Exit time
+            {t('modal.exit')}
             <input type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
           </label>
         </div>
-        {overnight && <p className="notice">The exit is earlier than the entry, so this shift ends the next day.</p>}
-        {!outTime && inTime && <p className="muted small">No exit time yet: this day is not counted in your salary until you add one.</p>}
+        {overnight && <p className="notice">{t('modal.overnight')}</p>}
+        {!outTime && inTime && <p className="muted small">{t('modal.noExit')}</p>}
 
         <label>
-          Note (optional)
+          {t('modal.note')}
           <textarea
             rows={3}
             maxLength={300}
-            placeholder="e.g. Face scanner showed absent"
+            placeholder={t('modal.notePh')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -77,21 +80,21 @@ export default function EntryModal({ entry, initialDate, onSave, onDelete, onClo
         {error && <p className="notice error" role="alert">{error}</p>}
 
         <button className="btn primary wide" disabled={busy || !date || !inTime}>
-          {busy ? 'Saving…' : 'Save'}
+          {busy ? t('common.saving') : t('common.save')}
         </button>
 
         {entry && onDelete && (
           confirmDelete ? (
             <button type="button" className="btn danger wide" disabled={busy} onClick={() => void run(onDelete)}>
-              Yes, delete this day
+              {t('modal.confirmDelete')}
             </button>
           ) : (
             <button type="button" className="btn ghost wide" disabled={busy} onClick={() => setConfirmDelete(true)}>
-              Delete
+              {t('common.delete')}
             </button>
           )
         )}
-        <button type="button" className="link" onClick={onClose}>Cancel</button>
+        <button type="button" className="link" onClick={onClose}>{t('common.cancel')}</button>
       </form>
     </div>
   )

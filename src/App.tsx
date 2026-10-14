@@ -5,6 +5,8 @@ import {
   checkIn, checkOut, deleteEntry, listEntries, listRates, saveEntry, type Entry, type Rate,
 } from './lib/data'
 import { currentPeriod, todayISO } from './lib/dates'
+import { t } from './lib/i18n'
+import { useLang } from './lib/useLang'
 import { useSummary } from './lib/hooks'
 import Auth from './components/Auth'
 import Home from './components/Home'
@@ -13,7 +15,7 @@ import History from './components/History'
 import Salary from './components/Salary'
 import EntryModal from './components/EntryModal'
 import Logo from './components/Logo'
-import { Credit } from './components/Bits'
+import { Credit, LangSwitch } from './components/Bits'
 import {
   IconCalendar, IconCheck, IconHome, IconList, IconLogout, IconMoon, IconSun, IconWallet,
 } from './components/Icons'
@@ -30,6 +32,7 @@ const readTheme = (): 'dark' | 'light' => {
 }
 
 export default function App() {
+  const lang = useLang()
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
   const [entries, setEntries] = useState<Entry[]>([])
@@ -40,6 +43,10 @@ export default function App() {
   const [modal, setModal] = useState<Modal>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
+
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -71,7 +78,7 @@ export default function App() {
       setRates(r)
       setLoadError(null)
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Could not load your records.')
+      setLoadError(e instanceof Error ? e.message : t('err.load'))
     }
     setVersion((v) => v + 1) // makes every salary figure re-load from the database
   }, [])
@@ -108,7 +115,7 @@ export default function App() {
       setToast(message)
       return true
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Could not save.')
+      setToast(e instanceof Error ? e.message : t('toast.failed'))
       await refresh()
       return false
     }
@@ -118,7 +125,7 @@ export default function App() {
     await saveEntry({ id: modal?.entry?.id, date, entry, exit, note })
     await refresh()
     setModal(null)
-    setToast('Saved.')
+    setToast(t('toast.saved'))
   }
 
   const removeModal = async () => {
@@ -126,7 +133,7 @@ export default function App() {
     await deleteEntry(modal.entry.id)
     await refresh()
     setModal(null)
-    setToast('Day deleted.')
+    setToast(t('toast.deleted'))
   }
 
   if (!configured) {
@@ -134,10 +141,10 @@ export default function App() {
       <main className="auth">
         <div className="auth-card">
           <Logo size={56} />
-          <h1>Almost there</h1>
+          <h1>{t('setup.title')}</h1>
           <p className="muted">
-            This site is built but not yet connected to its database. Add <code>VITE_SUPABASE_URL</code> and{' '}
-            <code>VITE_SUPABASE_ANON_KEY</code> as repository secrets, then re-run the deploy. See the README.
+            {t('setup.a')} <code>VITE_SUPABASE_URL</code> {t('setup.and')}{' '}
+            <code>VITE_SUPABASE_ANON_KEY</code> {t('setup.b')}
           </p>
           <Credit />
         </div>
@@ -153,10 +160,11 @@ export default function App() {
       <header className="topbar">
         <div className="brand"><Logo size={30} /><span>Dayline</span></div>
         <div className="top-actions">
-          <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Switch theme">
+          <LangSwitch />
+          <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={t('aria.theme')}>
             {theme === 'dark' ? <IconSun /> : <IconMoon />}
           </button>
-          <button className="icon-btn" onClick={() => void supabase.auth.signOut()} aria-label="Sign out">
+          <button className="icon-btn" onClick={() => void supabase.auth.signOut()} aria-label={t('aria.signOut')}>
             <IconLogout />
           </button>
         </div>
@@ -169,8 +177,8 @@ export default function App() {
             entries={entries}
             rates={rates}
             summary={summary}
-            onCheckIn={() => run(checkIn, 'Saved. Entry time recorded.')}
-            onCheckOut={(id) => run(() => checkOut(id), 'Saved. Exit time recorded.')}
+            onCheckIn={() => run(checkIn, t('toast.entry'))}
+            onCheckOut={(id) => run(() => checkOut(id), t('toast.exit'))}
             onEdit={(entry) => setModal({ entry })}
             onGoSalary={() => setTab('salary')}
           />
@@ -185,11 +193,11 @@ export default function App() {
         <Credit />
       </main>
 
-      <nav className="tabbar" aria-label="Main">
-        <button className={tab === 'today' ? 'active' : ''} onClick={() => setTab('today')}><IconHome /><span>Today</span></button>
-        <button className={tab === 'calendar' ? 'active' : ''} onClick={() => setTab('calendar')}><IconCalendar /><span>Calendar</span></button>
-        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><IconList /><span>History</span></button>
-        <button className={tab === 'salary' ? 'active' : ''} onClick={() => setTab('salary')}><IconWallet /><span>Salary</span></button>
+      <nav className="tabbar" aria-label={t('nav.main')}>
+        <button className={tab === 'today' ? 'active' : ''} onClick={() => setTab('today')}><IconHome /><span>{t('nav.today')}</span></button>
+        <button className={tab === 'calendar' ? 'active' : ''} onClick={() => setTab('calendar')}><IconCalendar /><span>{t('nav.calendar')}</span></button>
+        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><IconList /><span>{t('nav.history')}</span></button>
+        <button className={tab === 'salary' ? 'active' : ''} onClick={() => setTab('salary')}><IconWallet /><span>{t('nav.salary')}</span></button>
       </nav>
 
       {toast && (

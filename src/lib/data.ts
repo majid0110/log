@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { addDays, nowLocal } from './dates'
+import { t } from './i18n'
 
 export interface Entry {
   id: string
@@ -38,11 +39,9 @@ const COLUMNS =
   'id, work_date, entry_at, exit_at, worked_minutes, lunch_minutes, paid_minutes, night_minutes, note, source'
 
 const explain = (error: { code?: string; message: string }): Error => {
-  if (error.code === '23505') return new Error('That day is already recorded.')
-  if (error.code === '23514') return new Error('The exit time must be after the entry time, and within 24 hours of it.')
-  if (/column|schema cache|function/i.test(error.message)) {
-    return new Error('The database needs the latest setup. Run supabase/schema.sql in the Supabase SQL Editor, then reload.')
-  }
+  if (error.code === '23505') return new Error(t('err.duplicate'))
+  if (error.code === '23514') return new Error(t('err.exitAfter'))
+  if (/column|schema cache|function/i.test(error.message)) return new Error(t('err.needSetup'))
   return new Error(error.message)
 }
 
