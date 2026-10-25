@@ -40,7 +40,7 @@ export function Credit() {
   useLang()
   return (
     <p className="credit">
-      {t('credit')} <strong>Хан</strong>
+      {t('credit')} <strong>Sadia Sultana</strong>
     </p>
   )
 }
