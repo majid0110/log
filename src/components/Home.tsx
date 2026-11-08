@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Entry, Rate, Summary } from '../lib/data'
 import {
   addDays, clock, currentPeriod, previousPeriod, dayAndMonth, duration, longWeekday, monthKey, monthName, monthTitle, parseISO, todayISO,
@@ -8,6 +8,7 @@ import { useSummary, useTick } from '../lib/hooks'
 import { useLang } from '../lib/useLang'
 import { Burst, Money } from './Bits'
 import { IconCheck } from './Icons'
+import { chime, tick, unlockSound, vibrate } from '../lib/sound'
 
 interface Props {
   entries: Entry[]
@@ -52,14 +53,42 @@ export default function Home({ entries, rates, summary, version, onCheckIn, onCh
 
   const tap = async () => {
     if (busy || phase === 'done') return
+    const kind = phase === 'in' ? 'in' : 'out'
     setBusy(true)
     try {
-      const ok = phase === 'in' ? await onCheckIn() : open ? await onCheckOut(open.id) : false
-      if (ok) setBurst((b) => b + 1)
+      const ok = kind === 'in' ? await onCheckIn() : open ? await onCheckOut(open.id) : false
+      if (ok) {
+        setBurst((b) => b + 1)
+        chime(kind)
+        vibrate(kind === 'in' ? 60 : [40, 60, 40])
+      }
     } finally {
       setBusy(false)
     }
   }
+
+  // Press and hold for 1 second, so a touch in the pocket never records anything.
+  const HOLD_MS = 1000
+  const [holding, setHolding] = useState(false)
+  const timer = useRef<number | null>(null)
+  const stopHold = () => {
+    if (timer.current != null) window.clearTimeout(timer.current)
+    timer.current = null
+    setHolding(false)
+  }
+  const startHold = (e: React.PointerEvent) => {
+    if (busy || phase === 'done' || e.button > 0) return
+    unlockSound()
+    tick()
+    vibrate(15)
+    setHolding(true)
+    timer.current = window.setTimeout(() => {
+      timer.current = null
+      setHolding(false)
+      void tap()
+    }, HOLD_MS)
+  }
+  useEffect(() => stopHold, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasRateThisMonth = rates.some((r) => r.month === `${thisMonth}-01`)
   const carriedRate = rates.find((r) => r.month < `${thisMonth}-01`)
@@ -100,19 +129,34 @@ export default function Home({ entries, rates, summary, version, onCheckIn, onCh
 
       <div className="worked-wrap">
         <button
-          className={`worked-btn ${phase}`}
-          onClick={tap}
+          className={`worked-btn ${phase}${holding ? ' holding' : ''}`}
+          onPointerDown={startHold}
+          onPointerUp={stopHold}
+          onPointerLeave={stopHold}
+          onPointerCancel={stopHold}
+          onContextMenu={(e) => e.preventDefault()}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+              e.preventDefault()
+              unlockSound()
+              void tap()
+            }
+          }}
           disabled={busy || phase === 'done'}
           aria-live="polite"
         >
           <span className="ring" aria-hidden="true">
+            <svg className="hold-ring" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" />
+            </svg>
             {phase === 'out' ? <span className="stop" /> : <IconCheck size={44} />}
           </span>
-          <span className="worked-label">{label}</span>
+          <span className="worked-label">{holding ? t('home.keepHolding') : label}</span>
           <span className="worked-sub">{sub}</span>
         </button>
         {burst > 0 && <Burst key={burst} />}
       </div>
+      {phase !== 'done' && <p className="hold-hint muted">{t('home.holdHint')}</p>}
 
       {open && open.work_date !== today && (
         <button className="link" onClick={() => onEdit(open)}>
@@ -123,7 +167,9 @@ export default function Home({ entries, rates, summary, version, onCheckIn, onCh
       <div className="stats">
         <button className={`card stat money-stat today-pay${closedToday ? ' earned' : ''}`} onClick={onGoSalary}>
           <span className="muted">{t('home.todayPay')}</span>
-          {closedToday && daySummary ? (
+          {closedToday && closedToday.paid_minutes == null ? (
+            <span className="stat-num pending">{t('home.payAfterSync')}</span>
+          ) : closedToday && daySummary ? (
             daySummary.rate != null ? (
               <>
                 <span className="stat-num"><Money value={daySummary.total_pay} currency={daySummary.currency} /></span>

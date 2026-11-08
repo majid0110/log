@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configured, supabase, takeRecoveryLink } from './lib/supabase'
 import {
-  checkIn, checkOut, deleteEntry, listEntries, listRates, saveEntry, type Entry, type Rate,
+  checkIn, checkOut, deleteEntry, listEntries, listRates, saveEntry, syncQueue, type Entry, type Rate, type TapResult,
 } from './lib/data'
+import { applyQueue, clearCache, isTempId, loadQueue } from './lib/offline'
 import { currentPeriod, todayISO } from './lib/dates'
 import { t } from './lib/i18n'
 import { useLang } from './lib/useLang'
@@ -44,6 +45,8 @@ export default function App() {
   const [modal, setModal] = useState<Modal>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
+  const [pending, setPending] = useState(() => loadQueue().length)
+  const [online, setOnline] = useState(() => navigator.onLine !== false)
   const [recovery, setRecovery] = useState<'recovery' | 'expired' | null>(null)
 
   useEffect(() => {
@@ -85,14 +88,45 @@ export default function App() {
   const refresh = useCallback(async () => {
     try {
       const [e, r] = await Promise.all([listEntries(), listRates()])
-      setEntries(e)
+      setEntries(applyQueue(e, loadQueue()))
       setRates(r)
       setLoadError(null)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : t('err.load'))
     }
+    setPending(loadQueue().length)
     setVersion((v) => v + 1) // makes every salary figure re-load from the database
   }, [])
+
+  /** Sends taps recorded offline, then reloads. */
+  const sync = useCallback(async () => {
+    if (!loadQueue().length) return
+    const r = await syncQueue()
+    if (r.synced || r.failed) {
+      setToast(r.failed ? t('toast.syncFailed') : t('toast.synced'))
+      await refresh()
+    }
+    setPending(r.left)
+  }, [refresh])
+
+  useEffect(() => {
+    const up = () => setOnline(true)
+    const down = () => setOnline(false)
+    window.addEventListener('online', up)
+    window.addEventListener('offline', down)
+    return () => {
+      window.removeEventListener('online', up)
+      window.removeEventListener('offline', down)
+    }
+  }, [])
+
+  // Try to send waiting taps when the connection comes back, and every 20 seconds while any are waiting.
+  useEffect(() => {
+    if (!session || !online || pending === 0) return
+    void sync()
+    const id = window.setInterval(() => void sync(), 20000)
+    return () => window.clearInterval(id)
+  }, [session, online, pending, sync])
 
   // Load on sign-in, and again whenever the app comes back to the foreground (picks up edits from the other phone).
   useEffect(() => {
@@ -119,11 +153,11 @@ export default function App() {
   const { summary } = useSummary(period.start, period.end, version)
 
   /** Runs a save, shows the result as a message, and reports whether it worked. */
-  const run = async (action: () => Promise<void>, message: string): Promise<boolean> => {
+  const run = async (action: () => Promise<TapResult | void>, message: string): Promise<boolean> => {
     try {
-      await action()
+      const result = await action()
       await refresh()
-      setToast(message)
+      setToast(result === 'queued' ? t('toast.queued') : message)
       return true
     } catch (e) {
       setToast(e instanceof Error ? e.message : t('toast.failed'))
@@ -133,6 +167,7 @@ export default function App() {
   }
 
   const saveModal = async (date: string, entry: string, exit: string, note: string) => {
+    if (modal?.entry && isTempId(modal.entry.id)) throw new Error(t('sync.editWait'))
     await saveEntry({ id: modal?.entry?.id, date, entry, exit, note })
     await refresh()
     setModal(null)
@@ -141,6 +176,7 @@ export default function App() {
 
   const removeModal = async () => {
     if (!modal?.entry) return
+    if (isTempId(modal.entry.id)) throw new Error(t('sync.editWait'))
     await deleteEntry(modal.entry.id)
     await refresh()
     setModal(null)
@@ -178,13 +214,28 @@ export default function App() {
           <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={t('aria.theme')}>
             {theme === 'dark' ? <IconSun /> : <IconMoon />}
           </button>
-          <button className="icon-btn" onClick={() => void supabase.auth.signOut()} aria-label={t('aria.signOut')}>
+          <button className="icon-btn" onClick={() => {
+            if (loadQueue().length) {
+              setToast(t('sync.signOutWait'))
+              return
+            }
+            clearCache()
+            void supabase.auth.signOut()
+          }} aria-label={t('aria.signOut')}>
             <IconLogout />
           </button>
         </div>
       </header>
 
       <main className="content" key={tab}>
+        {(!online || pending > 0) && (
+          <div className="sync-row">
+            <span className={`sync-pill${online ? ' waiting' : ''}`} role="status">
+              <i aria-hidden="true" />
+              {!online ? t('sync.offline') : ''}{!online && pending > 0 ? ' · ' : ''}{pending > 0 ? t('sync.waiting', { n: pending }) : ''}
+            </span>
+          </div>
+        )}
         {loadError && <p className="notice error" role="alert">{loadError}</p>}
         {tab === 'today' && (
           <Home
