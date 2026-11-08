@@ -77,3 +77,28 @@ test('previousPeriod: the last salary period before today', () => {
   assert.deepEqual([previousPeriod('2026-01-03').start, previousPeriod('2026-01-03').end], ['2025-12-16', '2025-12-31'])
   assert.equal(previousPeriod('2026-03-10').end, '2026-02-28')
 })
+
+test('applyQueue: offline entry and exit appear on top of loaded records', async () => {
+  const { applyQueue } = await import('./offline.ts')
+  const base = [{
+    id: 'a', work_date: '2026-11-07', entry_at: '2026-11-07T21:00:00', exit_at: null, worked_minutes: null,
+    lunch_minutes: null, paid_minutes: null, night_minutes: null, note: null, source: 'tap' as const,
+  }]
+  const out = applyQueue(base, [
+    { kind: 'out', target: 'a', at: '2026-11-08T07:00:00' },
+    { kind: 'in', tempId: 'local-1', at: '2026-11-08T21:00:00' },
+    { kind: 'in', tempId: 'local-2', at: '2026-11-08T22:00:00' }, // same day twice: ignored
+  ])
+  assert.equal(out.length, 2)
+  assert.equal(out[0].id, 'local-1')
+  assert.equal(out[0].exit_at, null)
+  assert.equal(out[1].exit_at, '2026-11-08T07:00:00')
+  assert.equal(base[0].exit_at, null) // original not changed
+})
+
+test('isNetworkError tells connection problems from database errors', async () => {
+  const { isNetworkError } = await import('./offline.ts')
+  assert.equal(isNetworkError(new TypeError('Failed to fetch')), true)
+  assert.equal(isNetworkError({ message: 'TypeError: Load failed' }), true)
+  assert.equal(isNetworkError({ code: '23505', message: 'duplicate key value' }), false)
+})
