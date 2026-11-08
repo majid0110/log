@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { Entry, Rate, Summary } from '../lib/data'
 import {
-  addDays, clock, currentPeriod, dayAndMonth, duration, longWeekday, monthKey, monthName, monthTitle, parseISO, todayISO,
+  addDays, clock, currentPeriod, previousPeriod, dayAndMonth, duration, longWeekday, monthKey, monthName, monthTitle, parseISO, todayISO,
 } from '../lib/dates'
 import { locale, t, tp } from '../lib/i18n'
-import { useTick } from '../lib/hooks'
+import { useSummary, useTick } from '../lib/hooks'
 import { useLang } from '../lib/useLang'
 import { Burst, Money } from './Bits'
 import { IconCheck } from './Icons'
@@ -13,6 +13,7 @@ interface Props {
   entries: Entry[]
   rates: Rate[]
   summary: Summary | null
+  version: number
   onCheckIn: () => Promise<boolean>
   onCheckOut: (id: string) => Promise<boolean>
   onEdit: (entry: Entry) => void
@@ -21,7 +22,7 @@ interface Props {
 
 const DAY_MS = 24 * 3600 * 1000
 
-export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, onEdit, onGoSalary }: Props) {
+export default function Home({ entries, rates, summary, version, onCheckIn, onCheckOut, onEdit, onGoSalary }: Props) {
   useLang()
   const [busy, setBusy] = useState(false)
   const [burst, setBurst] = useState(0)
@@ -39,6 +40,13 @@ export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, o
 
   const now = useTick(phase === 'out')
   const running = open?.entry_at ? Math.max(0, Math.floor((now - new Date(open.entry_at).getTime()) / 60000)) : 0
+
+  // The shift closed today (including a night shift that started yesterday and ended this morning).
+  const closedToday = entries.find((e) => e.exit_at && (e.work_date === today || e.exit_at.slice(0, 10) === today))
+  const payDay = closedToday?.work_date ?? today
+  const { summary: daySummary } = useSummary(payDay, payDay, version)
+  const last = previousPeriod(today)
+  const { summary: lastSummary } = useSummary(last.start, last.end, version)
 
   const monthCount = entries.filter((e) => monthKey(e.work_date) === thisMonth).length
 
@@ -111,6 +119,41 @@ export default function Home({ entries, rates, summary, onCheckIn, onCheckOut, o
           {t('home.openWrong', { date: open.work_date })}
         </button>
       )}
+
+      <div className="stats">
+        <button className={`card stat money-stat today-pay${closedToday ? ' earned' : ''}`} onClick={onGoSalary}>
+          <span className="muted">{t('home.todayPay')}</span>
+          {closedToday && daySummary ? (
+            daySummary.rate != null ? (
+              <>
+                <span className="stat-num"><Money value={daySummary.total_pay} currency={daySummary.currency} /></span>
+                <span className="muted small">{duration(closedToday.paid_minutes)}</span>
+              </>
+            ) : (
+              <span className="stat-num pending">{t('home.setRate')}</span>
+            )
+          ) : (
+            <span className="stat-num pending">
+              {closedToday ? '…' : phase === 'out' ? t('home.todayPending') : t('home.todayNone')}
+            </span>
+          )}
+        </button>
+        <button className="card stat money-stat" onClick={onGoSalary}>
+          <span className="muted">{t('home.lastSalary', { month: monthName(monthKey(last.start)), period: last.label })}</span>
+          {lastSummary ? (
+            lastSummary.rate != null ? (
+              <>
+                <span className="stat-num"><Money value={lastSummary.grand_total} currency={lastSummary.currency} /></span>
+                <span className="muted small">{tp('days', lastSummary.work_days)}</span>
+              </>
+            ) : (
+              <span className="stat-num pending">{t('home.setRate')}</span>
+            )
+          ) : (
+            <span className="stat-num pending">…</span>
+          )}
+        </button>
+      </div>
 
       <div className="stats">
         <div className="card stat">

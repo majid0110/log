@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildCsv, csvField } from './csv.ts'
 import {
-  addDays, clock, currentPeriod, duration, hm, monthGrid, monthKey, parseISO, periodsOf, shiftMonth, toISO,
+  addDays, clock, currentPeriod, duration, hm, monthGrid, monthKey, parseISO, periodsOf, previousPeriod, shiftMonth, toISO,
 } from './dates.ts'
 
 test('csvField quotes and escapes', () => {
@@ -69,4 +69,11 @@ test('pay periods: 1-15 and 16-end, including 28, 30 and 31 day months', () => {
   assert.equal(periodsOf('2028-02')[1].end, '2028-02-29')
   assert.equal(currentPeriod('2026-10-15').second, false)
   assert.equal(currentPeriod('2026-10-16').second, true)
+})
+
+test('previousPeriod: the last salary period before today', () => {
+  assert.deepEqual([previousPeriod('2026-11-08').start, previousPeriod('2026-11-08').end], ['2026-10-16', '2026-10-31'])
+  assert.deepEqual([previousPeriod('2026-11-20').start, previousPeriod('2026-11-20').end], ['2026-11-01', '2026-11-15'])
+  assert.deepEqual([previousPeriod('2026-01-03').start, previousPeriod('2026-01-03').end], ['2025-12-16', '2025-12-31'])
+  assert.equal(previousPeriod('2026-03-10').end, '2026-02-28')
 })

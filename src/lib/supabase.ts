@@ -53,3 +53,29 @@ export const keepStorage = (): void => {
     /* not supported: nothing to do */
   }
 }
+
+/**
+ * Password reset: Supabase's email link opens the site with
+ * "#access_token=…&refresh_token=…&type=recovery" (or "#error=…" if the link expired).
+ * Signs in with that one-time link and removes it from the address bar.
+ */
+export async function takeRecoveryLink(): Promise<'recovery' | 'expired' | null> {
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
+  if (!hash) return null
+  const params = new URLSearchParams(hash)
+  const isRecovery = params.get('type') === 'recovery'
+  const hasError = params.has('error') || params.has('error_code')
+  if (!isRecovery && !hasError) return null
+
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  if (hasError) return 'expired'
+
+  const access_token = params.get('access_token')
+  const refresh_token = params.get('refresh_token')
+  if (!access_token || !refresh_token) return 'expired'
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+  return error ? 'expired' : 'recovery'
+}
+
+/** Where the reset email should send you back to: this same page. */
+export const siteAddress = (): string => window.location.origin + window.location.pathname

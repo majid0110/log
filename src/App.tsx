@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { configured, supabase } from './lib/supabase'
+import { configured, supabase, takeRecoveryLink } from './lib/supabase'
 import {
   checkIn, checkOut, deleteEntry, listEntries, listRates, saveEntry, type Entry, type Rate,
 } from './lib/data'
@@ -9,6 +9,7 @@ import { t } from './lib/i18n'
 import { useLang } from './lib/useLang'
 import { useSummary } from './lib/hooks'
 import Auth from './components/Auth'
+import NewPassword from './components/NewPassword'
 import Home from './components/Home'
 import CalendarView from './components/CalendarView'
 import History from './components/History'
@@ -43,6 +44,7 @@ export default function App() {
   const [modal, setModal] = useState<Modal>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
+  const [recovery, setRecovery] = useState<'recovery' | 'expired' | null>(null)
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -63,11 +65,20 @@ export default function App() {
       setReady(true)
       return
     }
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setReady(true)
+    // A password-reset link from the email is handled first, then the saved sign-in is read.
+    void takeRecoveryLink()
+      .then((r) => {
+        setRecovery(r)
+        return supabase.auth.getSession()
+      })
+      .then(({ data }) => {
+        setSession(data.session)
+        setReady(true)
+      })
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery('recovery')
+      setSession(s)
     })
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -153,7 +164,10 @@ export default function App() {
   }
 
   if (!ready) return <div className="splash"><Logo size={56} /></div>
-  if (!session) return <Auth />
+  if (recovery === 'recovery' && session) {
+    return <NewPassword onDone={() => { setRecovery(null); setToast(t('auth.changed')) }} />
+  }
+  if (!session) return <Auth notice={recovery === 'expired' ? t('auth.expired') : null} />
 
   return (
     <div className="app">
@@ -177,6 +191,7 @@ export default function App() {
             entries={entries}
             rates={rates}
             summary={summary}
+            version={version}
             onCheckIn={() => run(checkIn, t('toast.entry'))}
             onCheckOut={(id) => run(() => checkOut(id), t('toast.exit'))}
             onEdit={(entry) => setModal({ entry })}
