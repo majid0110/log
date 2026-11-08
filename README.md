@@ -23,7 +23,8 @@ Designed & built by **Хан**.
 2. Open **SQL Editor**, paste the **whole** contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the tables, the pay calculation and the privacy rules. It is safe to run again, and it keeps existing records, so **run it again after every update that changes this file**.
 3. Open **Authentication → Sign In / Providers → Email** and turn **off** "Confirm email".
 4. After you have created your own account in the website, turn **off** "Allow new users to sign up" (Authentication → Sign In / Providers). This locks the site to your account alone.
-5. Open **Project Settings → API** and copy the **Project URL** and the **anon public** key. Never use the `service_role` key anywhere in this project.
+5. For **Forgot password?**: open **Authentication → URL Configuration**, set **Site URL** to `https://majid0110.github.io/log/` and add the same address under **Redirect URLs**. Otherwise the reset email sends you to `localhost`.
+6. Open **Project Settings → API** and copy the **Project URL** and the **anon public** key. Never use the `service_role` key anywhere in this project.
 
 ### 2. Give the keys to GitHub (secrets, never in the code)
 **Settings → Secrets and variables → Actions → New repository secret**:
