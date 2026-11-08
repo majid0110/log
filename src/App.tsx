@@ -177,6 +177,7 @@ export default function App() {
             entries={entries}
             rates={rates}
             summary={summary}
+            version={version}
             onCheckIn={() => run(checkIn, t('toast.entry'))}
             onCheckOut={(id) => run(() => checkOut(id), t('toast.exit'))}
             onEdit={(entry) => setModal({ entry })}

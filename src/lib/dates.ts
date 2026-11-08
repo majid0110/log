@@ -100,6 +100,12 @@ export const currentPeriod = (iso: string): Period => {
   return Number(iso.slice(8)) <= 15 ? first : second
 }
 
+/** The pay period before the one containing `iso` — i.e. the last salary you received. */
+export const previousPeriod = (iso: string): Period => {
+  const key = monthKey(iso)
+  return Number(iso.slice(8)) <= 15 ? periodsOf(shiftMonth(key, -1))[1] : periodsOf(key)[0]
+}
+
 /** Cells for a Monday-first month grid; null = empty leading cell. */
 export const monthGrid = (key: string): (string | null)[] => {
   const [y, m] = key.split('-').map(Number)

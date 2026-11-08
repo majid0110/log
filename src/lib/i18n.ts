@@ -63,6 +63,10 @@ const en = {
   'home.salarySoFar': 'Salary so far, {month} {period}',
   'home.paidDays': '{dur} paid · {days}',
   'home.setRate': 'Set your hourly rate',
+  'home.todayPay': "Today's pay",
+  'home.todayPending': 'Shown when you record your exit',
+  'home.todayNone': 'No shift today',
+  'home.lastSalary': 'Last salary · {month} {period}',
 
   // add / edit a day
   'modal.edit': 'Edit day',
@@ -201,6 +205,10 @@ const ru: Record<Key, string> = {
   'home.salarySoFar': 'Зарплата на сегодня, {month} {period}',
   'home.paidDays': '{dur} к оплате · {days}',
   'home.setRate': 'Укажите почасовую ставку',
+  'home.todayPay': 'Заработано сегодня',
+  'home.todayPending': 'Появится после записи выхода',
+  'home.todayNone': 'Сегодня смены нет',
+  'home.lastSalary': 'Прошлая зарплата · {month} {period}',
 
   'modal.edit': 'Изменить день',
   'modal.add': 'Добавить день',
